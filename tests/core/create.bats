@@ -134,6 +134,27 @@ teardown() {
 }
 
 # ============================================================================
+# Interactive Create Tests
+# ============================================================================
+
+@test "create interactive: shows generic workflow hint in description prompt" {
+    # Pipe answers to the interactive prompts:
+    # name, emoji, summary, schedule, author, description, blank line to end
+    local input="test-wf
+💧
+Test summary
+
+@test
+Do something useful
+
+"
+    run_clawflows create <<< "$input"
+
+    assert_success
+    assert_output --partial "Keep it generic"
+}
+
+# ============================================================================
 # Edge Cases
 # ============================================================================
 

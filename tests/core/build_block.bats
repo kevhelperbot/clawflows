@@ -13,16 +13,25 @@ teardown() {
 }
 
 # ============================================================================
-# Creating Workflows Guide Link
+# Creating Workflows Section
 # ============================================================================
 
-@test "build_block: includes creating workflows guide link" {
+@test "build_block: includes creating workflows section with file reference" {
     run_clawflows sync-agent
 
     assert_success
     run cat "$AGENTS_MD"
-    assert_output --partial "Creating Workflows Guide"
+    assert_output --partial "### Creating Workflows"
     assert_output --partial "docs/creating-workflows.md"
+}
+
+@test "build_block: directs agent to read creating-workflows guide before creating" {
+    run_clawflows sync-agent
+
+    assert_success
+    run cat "$AGENTS_MD"
+    assert_output --partial "read"
+    assert_output --partial "first and follow it"
 }
 
 # ============================================================================

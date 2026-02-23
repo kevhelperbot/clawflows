@@ -1,5 +1,13 @@
 # Updates
 
+## Thu, Feb 19
+
+- 🍌 **Generic nudge in create** — The interactive `clawflows create` prompt now gently reminds you to keep it generic — say "the user" not your name, skip the hardcoded locations. Your workflows should work for any banana-loving human, not just you!
+
+## Wed, Feb 18
+
+- 🧙 **Interactive workflow creation** — Agents now walk you through questions before creating a workflow, show you the result, and ask if you want tweaks — no more yolo JSON dumps! The creating-workflows guide is the single source of truth, and `_build_block()` tells the agent to read it first. One file to rule them all, one file to find them!
+
 ## Tue, Feb 17
 
 - 📖 **Workflow creation guide link** — The agent now knows about `docs/creating-workflows.md` when creating clawflows — no more guessing, just follow the banana-scented blueprint!

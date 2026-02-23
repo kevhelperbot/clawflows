@@ -2,6 +2,90 @@
 
 How to build your own ClawFlows workflow.
 
+## Creating a Workflow (for Agents)
+
+When a user wants a custom workflow, walk them through it conversationally before creating anything.
+
+### Step 1: Ask These Questions
+
+1. **What should it do?** — Get the core idea
+2. **When should it run?** — Scheduled (e.g., "9am", "9am, 5pm") or only when they ask (on-demand)?
+3. **Anything specific?** — Details about how it should work
+
+That's it. You pick the name and emoji based on what they describe.
+
+### Step 2: Create It
+
+```bash
+clawflows create --from-json '{
+  "name": "remind-to-stretch",
+  "emoji": "🧘",
+  "summary": "Stretch reminders during work hours",
+  "schedule": "9am, 11am, 1pm, 3pm, 5pm",
+  "description": "Send me a friendly reminder to stretch and take a quick break from the desk."
+}'
+```
+
+#### JSON Fields
+
+| Field | Required | Example |
+|-------|----------|---------|
+| `name` | Yes | `remind-to-stretch` (you pick this — lowercase, hyphenated) |
+| `emoji` | No | `🧘` (you pick this — default: 🔧) |
+| `summary` | Yes | One-line description |
+| `schedule` | No | `"9am"` or `"9am, 5pm"` — omit for on-demand |
+| `description` | Yes | What the workflow should do |
+
+### Step 3: Show It and Ask for Edits
+
+After creating the workflow:
+
+1. **Read the WORKFLOW.md** that was just created and show the user the full contents
+2. **Ask if they want any changes** — "Here's your workflow — want to tweak anything?"
+3. If they want edits, make the changes directly to the WORKFLOW.md file and show them the updated version
+4. Repeat until they're happy
+
+The workflow is created in `workflows/available/custom/` and automatically enabled. AGENTS.md is updated so you know about it. Custom workflows are safe from updates.
+
+### Example Conversation
+
+```
+User: "make me a workflow to remind me to stretch"
+
+Agent: "On it! Should this run on a schedule (like every few hours during
+work) or only when you ask?"
+
+User: "every 2 hours while I'm working"
+
+Agent: "Got it — I'll set it for 9am, 11am, 1pm, 3pm, and 5pm."
+
+[Runs: clawflows create --from-json '{"name": "remind-to-stretch", ...}']
+[Reads the created WORKFLOW.md]
+
+Agent: "Here's your new workflow:
+
+---
+name: remind-to-stretch
+emoji: 🧘
+description: Stretch reminders during work hours
+schedule: "9am, 11am, 1pm, 3pm, 5pm"
+---
+
+# Remind To Stretch
+
+Send me a friendly reminder to stretch and take a quick break from the desk.
+
+---
+
+It's enabled and will run 5 times during work hours. Want to tweak anything?"
+
+User: "can you add a tip about a specific stretch each time?"
+
+Agent: [Updates the WORKFLOW.md, shows the new version]
+
+"Updated! Here's the new version: ..."
+```
+
 ## Workflow Structure
 
 Each workflow is a folder with a `WORKFLOW.md` and optional supporting files:
