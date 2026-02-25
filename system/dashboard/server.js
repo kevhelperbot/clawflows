@@ -6,7 +6,7 @@
 
 const http = require('http');
 const fs = require('fs');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 
 const port = parseInt(process.argv[2] || '0', 10);
 const cliPath = process.argv[3];
@@ -78,6 +78,19 @@ const server = http.createServer(function (req, res) {
       res.writeHead(err ? 500 : 200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: !err, message: (out || '').trim() }));
     });
+    return;
+  }
+
+  // POST /api/run/<name> — fire-and-forget workflow run
+  var runMatch = req.method === 'POST' && req.url.match(/^\/api\/run\/([a-zA-Z0-9_-]+)$/);
+  if (runMatch) {
+    var rname = runMatch[1];
+    var child = spawn(cliPath, ['run', rname], {
+      detached: true, stdio: 'ignore', env: process.env
+    });
+    child.unref();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, message: 'Running ' + rname }));
     return;
   }
 

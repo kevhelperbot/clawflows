@@ -218,6 +218,11 @@
   }
   .wf-btn.disable-btn:hover { color: var(--red); border-color: var(--red-border); background: var(--red-bg); }
   .wf-btn:disabled { opacity: .4; cursor: default; pointer-events: none; }
+  .wf-enabled-tag {
+    font-size: 11px; font-weight: 600; color: var(--green);
+    padding: 4px 10px; border-radius: 6px;
+    background: var(--green-bg); border: 1px solid var(--green-border);
+  }
 
   /* ── Empty states ── */
   .empty { text-align: center; padding: 72px 20px; }
@@ -476,7 +481,7 @@
 
 <div class="tabs-bar">
   <div class="tabs-inner">
-    <div class="tab active" data-tab="mine">My Workflows <span class="ct" id="ct-mine">0</span></div>
+    <div class="tab active" data-tab="mine">Enabled <span class="ct" id="ct-mine">0</span></div>
     <div class="tab" data-tab="available">Available <span class="ct" id="ct-available">0</span></div>
     <div class="tab" data-tab="runs">Run History <span class="ct" id="ct-runs">0</span></div>
     <div class="tab" data-tab="share" style="margin-left:auto">Share My Workflows</div>
@@ -567,42 +572,29 @@ function loadWorkflows() {
 
 function render() {
   var mine = [];
-  var avail = [];
   WORKFLOWS.forEach(function(w) {
     if (w.enabled) mine.push(w);
-    else avail.push(w);
   });
 
   document.getElementById('ct-mine').textContent = mine.length;
-  document.getElementById('ct-available').textContent = avail.length;
+  document.getElementById('ct-available').textContent = WORKFLOWS.length;
 
   renderSectionedList(mine, 'page-mine', {
     icon: '\u26A1\uFE0F', title: 'No workflows enabled yet',
     sub: 'Check the Available tab to turn some on'
-  }, true);
-  renderSectionedList(avail, 'page-available', {
-    icon: '\u2705', title: 'Everything is enabled!',
-    sub: 'You\'ve turned on every available workflow'
-  }, false);
+  }, 'enabled');
+  renderSectionedList(WORKFLOWS, 'page-available', {
+    icon: '\u26A1\uFE0F', title: 'No workflows found',
+    sub: 'Try running clawflows update'
+  }, 'available');
 
   renderShareTab();
 
   if (openPanelName) openPanel(openPanelName);
 }
 
-function renderSectionedList(items, containerId, emptyMsg, isEnabled) {
+function renderSectionedList(items, containerId, emptyMsg, mode) {
   var el = document.getElementById(containerId);
-  if (items.length === 0 && !isEnabled) {
-    // Available tab with nothing — still show custom section with create
-    el.innerHTML =
-      '<div class="section-header">Your Workflows <button class="create-link" onclick="openCreate()">+ Create</button></div>' +
-      '<div class="custom-empty"><p>You haven\'t created any custom workflows yet.</p>' +
-      '<button class="create-btn" onclick="openCreate()">+ Create Workflow</button></div>' +
-      '<div class="empty"><div class="empty-icon">' + emptyMsg.icon +
-      '</div><div class="empty-title">' + emptyMsg.title +
-      '</div><div class="empty-sub">' + emptyMsg.sub + '</div></div>';
-    return;
-  }
   if (items.length === 0) {
     el.innerHTML = '<div class="empty"><div class="empty-icon">' + emptyMsg.icon +
       '</div><div class="empty-title">' + emptyMsg.title +
@@ -619,41 +611,43 @@ function renderSectionedList(items, containerId, emptyMsg, isEnabled) {
 
   var html = '';
 
-  // Always show custom section in Available tab
-  if (!isEnabled) {
+  if (mode === 'available') {
     html += '<div class="section-header">Your Workflows <button class="create-link" onclick="openCreate()">+ Create</button></div>';
     if (custom.length > 0) {
-      html += renderCards(custom, isEnabled);
+      html += renderCards(custom, mode);
     } else {
-      html += '<div class="custom-empty"><p>You haven\'t created any custom workflows yet.</p>' +
-        '<button class="create-btn" onclick="openCreate()">+ Create Workflow</button></div>';
+      html += '<div class="custom-empty"><p>You haven\'t created any custom workflows yet.</p></div>';
     }
   } else {
     if (custom.length > 0) {
       html += '<div class="section-header">Your Workflows</div>';
-      html += renderCards(custom, isEnabled);
+      html += renderCards(custom, mode);
     }
   }
 
   if (community.length > 0) {
     html += '<div class="section-header">Community</div>';
-    html += renderCards(community, isEnabled);
+    html += renderCards(community, mode);
   }
   el.innerHTML = html;
 }
 
-function renderCards(items, isEnabled) {
+function renderCards(items, mode) {
   var html = '';
   items.forEach(function(w) {
     var tags = '';
     if (w.schedule) tags += '<span class="tag tag-sched"><span class="tag-label">Runs: </span>' + esc(w.schedule) + '</span>';
     else tags += '<span class="tag tag-on-demand"><span class="tag-label">Runs: </span>On Demand</span>';
 
-    var toggleBtn = '';
-    if (isEnabled) {
-      toggleBtn = '<button class="wf-btn disable-btn" data-action="disable" data-wf="' + esc(w.name) + '">disable</button>';
-    } else {
-      toggleBtn = '<button class="wf-btn enable-btn" data-action="enable" data-wf="' + esc(w.name) + '">enable</button>';
+    var actionHtml = '';
+    if (mode === 'enabled') {
+      actionHtml = '<button class="wf-btn disable-btn" data-action="disable" data-wf="' + esc(w.name) + '">disable</button>';
+    } else if (mode === 'available') {
+      if (w.enabled) {
+        actionHtml = '<span class="wf-enabled-tag">\u2713 enabled</span>';
+      } else {
+        actionHtml = '<button class="wf-btn enable-btn" data-action="enable" data-wf="' + esc(w.name) + '">enable</button>';
+      }
     }
 
     html += '<div class="wf" data-name="' + esc(w.name) + '">' +
@@ -665,7 +659,7 @@ function renderCards(items, isEnabled) {
           '<div class="wf-tags">' + tags + '</div>' +
           '<div class="wf-actions">' +
             '<button class="wf-btn details-btn" data-details="' + esc(w.name) + '">details</button>' +
-            toggleBtn +
+            actionHtml +
           '</div>' +
         '</div>' +
       '</div></div>';
@@ -910,7 +904,7 @@ function openPanel(name) {
 
   var cmds = '';
   if (w.enabled) {
-    cmds += '<button class="cmd primary" onclick="copyCmd(\'clawflows run ' + esc(w.name) + '\')">run</button>';
+    cmds += '<button class="cmd primary" onclick="runWorkflow(\'' + esc(w.name) + '\')">run</button>';
     cmds += '<button class="cmd disable-cmd" data-action="disable" data-wf="' + esc(w.name) + '">disable</button>';
   } else {
     cmds += '<button class="cmd enable-cmd" data-action="enable" data-wf="' + esc(w.name) + '">enable</button>';
@@ -949,6 +943,12 @@ function copyCmd(text) {
     document.body.removeChild(ta);
     toast('Copied!');
   }
+}
+function runWorkflow(name) {
+  toast('Running ' + name + '...');
+  fetch('/api/run/' + encodeURIComponent(name), { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .catch(function() { toast('Failed to start ' + name); });
 }
 function toast(msg) {
   var el = document.getElementById('toast');
