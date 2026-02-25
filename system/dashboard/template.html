@@ -773,17 +773,17 @@ function renderShareTab() {
   el.innerHTML =
     '<div class="share-page">' +
       '<div class="share-page-title">Share My Workflows</div>' +
-      '<div class="share-page-sub">Share your ClawFlows setup as an image.</div>' +
-      '<div class="share-preview" id="share-preview"><div class="loading">Generating image</div></div>' +
+      '<div class="share-page-sub">Download the image, then attach it to your post.</div>' +
       '<div class="share-btns">' +
-        '<button class="share-btn dl-btn" id="share-dl-btn">' +
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
-          'Download Image</button>' +
-        nativeBtn +
         '<a class="share-btn x-btn" href="https://x.com/intent/tweet?text=' + tweetText + '" target="_blank" rel="noopener">' +
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>' +
           'Post on X</a>' +
+        nativeBtn +
+        '<button class="share-btn dl-btn" id="share-dl-btn">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
+          'Download Image</button>' +
       '</div>' +
+      '<div class="share-preview" id="share-preview"><div class="loading">Generating image</div></div>' +
     '</div>';
 
   // Build off-screen render card
@@ -793,7 +793,7 @@ function renderShareTab() {
   card.id = 'share-img-card';
   card.className = 'share-img-card';
   card.innerHTML =
-    '<div class="share-img-logo"><span class="claw">Claw</span><span class="flows">Flows</span></div>' +
+    '<div class="share-img-logo">My <span class="claw">Claw</span><span class="flows">Flows</span></div>' +
     '<div class="share-img-sub">' + enabled.length + ' workflow' + (enabled.length === 1 ? '' : 's') + ' enabled</div>' +
     '<div class="share-img-list">' + imgItems + '</div>' +
     '<div class="share-img-footer"><span>github.com/davehappyminion/clawflows</span></div>';

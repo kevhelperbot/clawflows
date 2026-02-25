@@ -59,7 +59,9 @@ cmd_help() {
     list                 Show all workflows (enabled + available)
     list enabled         Show only enabled workflows
     list available       Show only available workflows
-    dashboard            Open workflows in your browser
+    dashboard            Open workflows in your browser (runs in background)
+    dashboard stop       Stop the dashboard server
+    dashboard status     Check if the dashboard is running
 
   ✨ Creating
     create               Create a new custom workflow (interactive)
@@ -695,7 +697,7 @@ _build_block() {
   lines+=("3. If the workflow isn't enabled yet, run \`clawflows enable <name>\` first")
   lines+=("")
   lines+=("### CLI Commands")
-  lines+=("- \`clawflows dashboard\` — open a visual workflow browser in the user's web browser")
+  lines+=("- \`clawflows dashboard\` — open a visual workflow browser in the user's web browser (runs in background, survives terminal close)")
   lines+=("- \`clawflows list\` — see all workflows")
   lines+=("- \`clawflows enable <name>\` — turn on a workflow")
   lines+=("- \`clawflows disable <name>\` — turn off a workflow")
@@ -1288,6 +1290,37 @@ _build_runs_json() {
   printf ']'
 }
 
+_dashboard_state_file() {
+  echo "$CLAWFLOWS_DIR/system/.dashboard-state"
+}
+
+_dashboard_is_running() {
+  local state_file
+  state_file="$(_dashboard_state_file)"
+  [ -f "$state_file" ] || return 1
+  local pid
+  pid="$(head -1 "$state_file")"
+  [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+_dashboard_stop() {
+  local state_file
+  state_file="$(_dashboard_state_file)"
+  if [ -f "$state_file" ]; then
+    local pid
+    pid="$(head -1 "$state_file")"
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null || true
+      echo "Dashboard stopped"
+    else
+      echo "Dashboard was not running"
+    fi
+    rm -f "$state_file"
+  else
+    echo "Dashboard is not running"
+  fi
+}
+
 cmd_dashboard() {
   local flag="${1:-}"
 
@@ -1300,6 +1333,36 @@ cmd_dashboard() {
   # --runs-json flag: output run history JSON to stdout (used by server.js)
   if [ "$flag" = "--runs-json" ]; then
     _build_runs_json
+    return
+  fi
+
+  # stop subcommand
+  if [ "$flag" = "stop" ]; then
+    _dashboard_stop
+    return
+  fi
+
+  # status subcommand
+  if [ "$flag" = "status" ]; then
+    if _dashboard_is_running; then
+      local url
+      url="$(tail -1 "$(_dashboard_state_file)")"
+      echo "Dashboard running at $url"
+    else
+      echo "Dashboard is not running"
+      rm -f "$(_dashboard_state_file)"
+    fi
+    return
+  fi
+
+  # If already running, just open the browser
+  if _dashboard_is_running; then
+    local url
+    url="$(tail -1 "$(_dashboard_state_file)")"
+    echo "Dashboard already running at $url"
+    if [ -z "${DASHBOARD_NO_OPEN:-}" ]; then
+      open "$url" 2>/dev/null || true
+    fi
     return
   fi
 
@@ -1324,31 +1387,32 @@ cmd_dashboard() {
   fifo="$(mktemp -d)/dashboard-fifo"
   mkfifo "$fifo"
 
-  # Start Node server in background, forwarding env vars
-  node "$server" "$port" "$cli_path" "$template" > "$fifo" 2>&1 &
+  # Start Node server in background, detached from terminal
+  nohup node "$server" "$port" "$cli_path" "$template" > "$fifo" 2>/dev/null &
   local server_pid=$!
-
-  # Clean up on exit
-  trap 'kill $server_pid 2>/dev/null; rm -f "$fifo"; rm -rf "$(dirname "$fifo")"' EXIT
+  disown "$server_pid" 2>/dev/null || true
 
   # Read the URL from the first line
   local url
   read -r url < "$fifo"
 
-  # Keep draining the FIFO in background so the server doesn't block
-  cat "$fifo" >/dev/null &
+  # Keep draining the FIFO so the server doesn't block, then clean up
+  (cat "$fifo" >/dev/null; rm -f "$fifo"; rmdir "$(dirname "$fifo")" 2>/dev/null) &
+  disown 2>/dev/null || true
+
+  # Save state (PID on line 1, URL on line 2)
+  local state_file
+  state_file="$(_dashboard_state_file)"
+  printf '%s\n%s\n' "$server_pid" "$url" > "$state_file"
 
   echo "Dashboard running at $url"
-  echo "Press Ctrl+C to stop"
+  echo "Stop with: clawflows dashboard stop"
   echo ""
 
   # Open in browser (skip if DASHBOARD_NO_OPEN is set, e.g. in tests)
   if [ -z "${DASHBOARD_NO_OPEN:-}" ]; then
     open "$url" 2>/dev/null || true
   fi
-
-  # Wait for Ctrl+C
-  wait "$server_pid" 2>/dev/null || true
 }
 
 # ── Main ────────────────────────────────────────────────────────────────────
