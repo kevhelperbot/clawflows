@@ -425,6 +425,44 @@
   .wf:nth-child(8) { animation-delay: .21s; }
   .wf:nth-child(9) { animation-delay: .24s; }
   .wf:nth-child(10) { animation-delay: .27s; }
+
+  /* ── Run History ── */
+  .runs-date-group { margin-bottom: 20px; }
+  .runs-date-header {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 12px 16px 8px;
+  }
+  .runs-date-group:not(:first-child) .runs-date-header {
+    border-top: 1px solid var(--border-subtle); padding-top: 18px;
+  }
+  .run-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: background .12s;
+  }
+  .run-item:hover { background: var(--bg-hover); }
+  .run-time {
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    color: var(--text-muted); min-width: 50px;
+  }
+  .run-emoji { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+  .run-name { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+  .panel-runs-section {
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+  }
+  .panel-runs-header {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 8px;
+  }
+  .panel-run-entry {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0; font-size: 13px;
+  }
+  .panel-run-entry + .panel-run-entry { border-top: 1px solid var(--border-subtle); }
+  .panel-run-date { color: var(--text-muted); min-width: 90px; }
+  .panel-run-time { font-family: var(--mono); color: var(--text-secondary); font-weight: 500; }
+  .panel-runs-more { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -440,6 +478,7 @@
   <div class="tabs-inner">
     <div class="tab active" data-tab="mine">My Workflows <span class="ct" id="ct-mine">0</span></div>
     <div class="tab" data-tab="available">Available <span class="ct" id="ct-available">0</span></div>
+    <div class="tab" data-tab="runs">Run History <span class="ct" id="ct-runs">0</span></div>
     <div class="tab" data-tab="share" style="margin-left:auto">Share My Workflows</div>
   </div>
 </div>
@@ -450,6 +489,7 @@
 <div class="page" id="page-available">
   <div class="loading">Loading workflows</div>
 </div>
+<div class="page" id="page-runs"></div>
 <div class="page" id="page-share"></div>
 
 <div class="overlay" id="overlay"></div>
@@ -464,6 +504,7 @@
     <button class="panel-x" id="pClose">&times;</button>
   </div>
   <div class="panel-cmds" id="pCmds"></div>
+  <div id="pRuns"></div>
   <div class="panel-body"><div class="md" id="pBody"></div></div>
 </div>
 
@@ -505,6 +546,7 @@
 
 <script>
 var WORKFLOWS = [];
+var RUNS = [];
 var openPanelName = null;
 
 function loadWorkflows() {
@@ -513,6 +555,7 @@ function loadWorkflows() {
     .then(function(data) {
       WORKFLOWS = data;
       render();
+      loadRuns();
     })
     .catch(function() {
       document.getElementById('page-mine').innerHTML =
@@ -874,6 +917,7 @@ function openPanel(name) {
   }
   cmds += '<button class="cmd" onclick="copyCmd(\'clawflows edit ' + esc(w.name) + '\')">edit</button>';
   document.getElementById('pCmds').innerHTML = cmds;
+  refreshPanelRuns(name);
   document.getElementById('pBody').innerHTML = renderMd(w.content || '');
 
   document.getElementById('overlay').classList.add('open');
@@ -944,6 +988,117 @@ function inl(t) {
   t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
   return t;
 }
+
+// ── Run History ──
+function loadRuns() {
+  fetch('/api/runs')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      RUNS = data;
+      renderRuns();
+      if (openPanelName) refreshPanelRuns(openPanelName);
+    })
+    .catch(function() { RUNS = []; renderRuns(); });
+}
+
+function renderRuns() {
+  var el = document.getElementById('page-runs');
+  document.getElementById('ct-runs').textContent = RUNS.length;
+
+  if (RUNS.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F4AD;</div>' +
+      '<div class="empty-title">No runs yet</div>' +
+      '<div class="empty-sub">Scheduled workflows will show up here after they run</div></div>';
+    return;
+  }
+
+  // Group by date (already sorted newest-first from CLI)
+  var groups = [];
+  var currentDate = '';
+  var currentItems = [];
+  for (var i = 0; i < RUNS.length; i++) {
+    if (RUNS[i].date !== currentDate) {
+      if (currentItems.length > 0) groups.push({ date: currentDate, items: currentItems });
+      currentDate = RUNS[i].date;
+      currentItems = [];
+    }
+    currentItems.push(RUNS[i]);
+  }
+  if (currentItems.length > 0) groups.push({ date: currentDate, items: currentItems });
+
+  var html = '';
+  for (var g = 0; g < groups.length; g++) {
+    html += '<div class="runs-date-group">';
+    html += '<div class="runs-date-header">' + formatDateLabel(groups[g].date) + '</div>';
+    for (var j = 0; j < groups[g].items.length; j++) {
+      var run = groups[g].items[j];
+      var wf = findWorkflow(run.workflow);
+      var emoji = wf ? wf.emoji : '';
+      html += '<div class="run-item" data-run-wf="' + esc(run.workflow) + '">' +
+        '<span class="run-time">' + esc(run.time) + '</span>' +
+        '<span class="run-emoji">' + (emoji || '\uD83D\uDCC4') + '</span>' +
+        '<span class="run-name">' + esc(run.workflow) + '</span>' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function formatDateLabel(dateStr) {
+  var parts = dateStr.split('-');
+  var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  var today = new Date(); today.setHours(0,0,0,0);
+  var yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+
+  if (d.getTime() === today.getTime()) return 'Today';
+  if (d.getTime() === yesterday.getTime()) return 'Yesterday';
+
+  var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate();
+}
+
+function findWorkflow(name) {
+  for (var i = 0; i < WORKFLOWS.length; i++) {
+    if (WORKFLOWS[i].name === name) return WORKFLOWS[i];
+  }
+  return null;
+}
+
+function refreshPanelRuns(name) {
+  var pRuns = document.getElementById('pRuns');
+  var wfRuns = [];
+  for (var i = 0; i < RUNS.length; i++) {
+    if (RUNS[i].workflow === name) wfRuns.push(RUNS[i]);
+  }
+
+  if (wfRuns.length === 0) {
+    pRuns.innerHTML = '';
+    return;
+  }
+
+  var html = '<div class="panel-runs-section"><div class="panel-runs-header">Recent Runs</div>';
+  var show = Math.min(wfRuns.length, 5);
+  for (var j = 0; j < show; j++) {
+    html += '<div class="panel-run-entry">' +
+      '<span class="panel-run-date">' + formatDateLabel(wfRuns[j].date) + '</span>' +
+      '<span class="panel-run-time">' + esc(wfRuns[j].time) + '</span>' +
+      '</div>';
+  }
+  if (wfRuns.length > 5) {
+    html += '<div class="panel-runs-more">' + (wfRuns.length - 5) + ' more</div>';
+  }
+  html += '</div>';
+  pRuns.innerHTML = html;
+}
+
+// Click handler for run items to open detail panel
+document.addEventListener('click', function(e) {
+  var runItem = e.target.closest('.run-item');
+  if (!runItem) return;
+  openPanel(runItem.dataset.runWf);
+});
 
 loadWorkflows();
 </script>

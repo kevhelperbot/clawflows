@@ -1239,12 +1239,64 @@ community|$enabled|${dir%/}/WORKFLOW.md"
   '
 }
 
+_build_runs_json() {
+  local runs_dir="$CLAWFLOWS_DIR/system/runs"
+
+  # Fast path: no runs directory
+  if [ ! -d "$runs_dir" ]; then
+    printf '[]'
+    return
+  fi
+
+  local first=true
+  printf '['
+
+  # Walk date directories newest-first
+  for date_dir in $(ls -1r "$runs_dir" 2>/dev/null); do
+    # Validate YYYY-MM-DD format
+    case "$date_dir" in
+      [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+      *) continue ;;
+    esac
+    [ -d "$runs_dir/$date_dir" ] || continue
+
+    # Walk workflow directories
+    for wf_dir in "$runs_dir/$date_dir"/*/; do
+      [ -d "$wf_dir" ] || continue
+      local wf_name
+      wf_name="$(basename "$wf_dir")"
+
+      # Walk time files
+      for time_file in "$wf_dir"*; do
+        [ -e "$time_file" ] || continue
+        local time_name
+        time_name="$(basename "$time_file")"
+
+        if $first; then
+          first=false
+        else
+          printf ','
+        fi
+        printf '{"date":"%s","workflow":"%s","time":"%s"}' "$date_dir" "$wf_name" "$time_name"
+      done
+    done
+  done
+
+  printf ']'
+}
+
 cmd_dashboard() {
   local flag="${1:-}"
 
   # --json flag: output workflow JSON to stdout (used by server.js)
   if [ "$flag" = "--json" ]; then
     _build_dashboard_json
+    return
+  fi
+
+  # --runs-json flag: output run history JSON to stdout (used by server.js)
+  if [ "$flag" = "--runs-json" ]; then
+    _build_runs_json
     return
   fi
 

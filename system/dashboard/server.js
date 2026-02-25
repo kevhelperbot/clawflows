@@ -49,6 +49,16 @@ const server = http.createServer(function (req, res) {
     return;
   }
 
+  // GET /api/runs — run history JSON
+  if (req.method === 'GET' && req.url === '/api/runs') {
+    runCli(['dashboard', '--runs-json'], function (err, out) {
+      if (err) { res.writeHead(500); res.end(JSON.stringify({ error: out })); return; }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(out);
+    });
+    return;
+  }
+
   // POST /api/enable/<name>
   var enableMatch = req.method === 'POST' && req.url.match(/^\/api\/enable\/([a-zA-Z0-9_-]+)$/);
   if (enableMatch) {

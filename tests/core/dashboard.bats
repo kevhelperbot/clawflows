@@ -342,6 +342,67 @@ start_dashboard_server() {
     echo "$response" | grep -q '"name":"check-email".*"enabled":true'
 }
 
+# ============================================================================
+# dashboard --runs-json: Run History JSON
+# ============================================================================
+
+@test "dashboard --runs-json: outputs empty array when no runs" {
+    run_clawflows dashboard --runs-json
+
+    assert_success
+    [[ "$output" == "[]" ]]
+}
+
+@test "dashboard --runs-json: returns runs as JSON" {
+    create_test_run "send-morning-briefing" "2026-02-24" "07:00"
+
+    run_clawflows dashboard --runs-json
+
+    assert_success
+    echo "$output" | grep -q '"date":"2026-02-24"'
+    echo "$output" | grep -q '"workflow":"send-morning-briefing"'
+    echo "$output" | grep -q '"time":"07:00"'
+}
+
+@test "dashboard --runs-json: multiple dates sorted newest first" {
+    create_test_run "check-email" "2026-02-22" "09:00"
+    create_test_run "check-email" "2026-02-24" "09:00"
+    create_test_run "check-email" "2026-02-23" "09:00"
+
+    run_clawflows dashboard --runs-json
+
+    assert_success
+    # Verify 2026-02-24 appears before 2026-02-22 in the output
+    local pos_24 pos_22
+    pos_24="$(echo "$output" | grep -bo '2026-02-24' | head -1 | cut -d: -f1)"
+    pos_22="$(echo "$output" | grep -bo '2026-02-22' | head -1 | cut -d: -f1)"
+    [[ "$pos_24" -lt "$pos_22" ]]
+}
+
+@test "dashboard --runs-json: ignores non-date directories" {
+    create_test_run "check-email" "2026-02-24" "09:00"
+    mkdir -p "${CLAWFLOWS_DIR}/system/runs/junk-dir"
+    touch "${CLAWFLOWS_DIR}/system/runs/junk-dir/something"
+
+    run_clawflows dashboard --runs-json
+
+    assert_success
+    echo "$output" | grep -q '"date":"2026-02-24"'
+    ! echo "$output" | grep -q 'junk-dir'
+}
+
+@test "dashboard server: GET /api/runs returns JSON" {
+    create_test_run "send-morning-briefing" "2026-02-24" "07:00"
+
+    start_dashboard_server
+
+    local response
+    response="$(curl -s "$DASHBOARD_URL/api/runs")"
+    echo "$response" | grep -q '"workflow":"send-morning-briefing"'
+    echo "$response" | grep -q '"date":"2026-02-24"'
+    echo "$response" | grep -q '"time":"07:00"'
+}
+
 @test "dashboard server: 404 for unknown routes" {
     start_dashboard_server
 

@@ -2,6 +2,7 @@
 
 ## Mon, Feb 24
 
+- 📊 **Run history in the dashboard** — The dashboard now has a Run History tab showing when your workflows actually ran! See all runs grouped by date (newest first), click any to open the workflow detail panel, and each workflow's panel now shows its 5 most recent runs. It's like a banana-flavored activity feed for your workflows 🍌
 - 🧠 **Agent knows create auto-enables** — The agent-facing instructions now explicitly say that `clawflows create` auto-enables the workflow and syncs AGENTS.md. No more "let me enable that for you" after creating — the banana was already in the basket! 🍌
 - 🔔 **No more double reminders** — Scheduled workflows were firing twice because the scheduler saved run markers using the current time instead of the scheduled time. Two consecutive 15-min checks would both think the workflow hadn't run yet. Now the marker is always keyed to the scheduled time — one banana per time slot, no duplicates! 🍌
 
