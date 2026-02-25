@@ -1123,6 +1123,11 @@ document.addEventListener('click', function(e) {
   openPanel(runItem.dataset.runWf);
 });
 
+// Reload data when user switches back to the browser (e.g. after editing in VS Code)
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden) loadWorkflows();
+});
+
 loadWorkflows();
 </script>
 </body>
